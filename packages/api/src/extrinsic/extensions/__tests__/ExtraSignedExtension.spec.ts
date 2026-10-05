@@ -99,4 +99,13 @@ describe('ExtraSignedExtension', () => {
     registry.metadata.extrinsic.signedExtensionsByVersion.delete(0);
     await expect(extension.init()).rejects.toThrow('No signed extensions found for extension version 0');
   });
+
+  it.each(['init', 'fromPayload'] as const)(
+    '%s rejects an out-of-range extension index with its version',
+    async (method) => {
+      const { extension } = makeExtension([3]);
+      const result = method === 'init' ? extension.init() : extension.fromPayload({} as SignerPayloadJSON);
+      await expect(result).rejects.toThrow('Invalid signed extension index 3 for extension version 0');
+    },
+  );
 });
