@@ -245,6 +245,7 @@ export class ChainHead extends JsonRpcGroup<ChainHeadEvent> {
 
   async #doFollow(): Promise<void> {
     const defer = deferred<void>();
+    let superseded = false;
 
     try {
       this.#unsub && this.#unsub().catch(noop); // ensure unfollowed
@@ -260,6 +261,7 @@ export class ChainHead extends JsonRpcGroup<ChainHeadEvent> {
             await this.#onFollowEvent(event, subscription);
 
             if (event.event === 'stop') {
+              superseded = true;
               // A stop before initialized is not a successful follow. Wait for its replacement.
               this.#recovering!.promise.then(defer.resolve, defer.reject);
               return;
@@ -284,8 +286,8 @@ export class ChainHead extends JsonRpcGroup<ChainHeadEvent> {
     // Wait for follow to complete, then retry pending requests
     await defer.promise;
 
-    // Retry pending requests if any (from previous disconnection)
-    if (this.#pendingRequests.size > 0) {
+    // Only the replacement follow may drain pending requests after an early stop.
+    if (!superseded && this.#pendingRequests.size > 0) {
       this.#retryPendingRequests();
     }
   }
